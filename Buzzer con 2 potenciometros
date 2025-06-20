@@ -1,0 +1,36 @@
+// Pines de los potenciómetros
+const int pot1Pin = A0;
+const int pot2Pin = A1;
+
+// Pin del buzzer
+const int buzzerPin = 9;
+
+// Umbral de alineación (puedes ajustar)
+const int umbral = 50;
+
+void setup() {
+  pinMode(buzzerPin, OUTPUT);
+  digitalWrite(buzzerPin, LOW);  // Asegura que empiece apagado
+  Serial.begin(9600);            // Para depuración opcional
+}
+
+void loop() {
+  // Leer valores de los potenciómetros
+  int valor1 = analogRead(pot1Pin);
+  int valor2 = analogRead(pot2Pin);
+
+  // Mostrar valores por el monitor serial (opcional)
+  Serial.print("Pot1: ");
+  Serial.print(valor1);
+  Serial.print(" | Pot2: ");
+  Serial.println(valor2);
+
+  // Si la diferencia es menor al umbral, activamos el buzzer
+  if (abs(valor1 - valor2) < umbral) {
+    digitalWrite(buzzerPin, HIGH);
+  } else {
+    digitalWrite(buzzerPin, LOW);
+  }
+
+  delay(50);  // Pequeña pausa para estabilidad
+}
