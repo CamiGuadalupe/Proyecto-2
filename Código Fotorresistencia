@@ -1,4 +1,4 @@
-int sensorLuz = A0;      // Pin analógico donde está conectada la LDR
+int sensorLuz = A2;      // Pin analógico donde está conectada la LDR
 int pinLED = 13;         // Pin donde está conectado el LED
 int umbral = 500;        // Umbral de luz (ajustable)
 
