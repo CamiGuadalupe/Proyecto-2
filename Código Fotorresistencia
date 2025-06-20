@@ -1,0 +1,21 @@
+int sensorLuz = A0;      // Pin analógico donde está conectada la LDR
+int pinLED = 13;         // Pin donde está conectado el LED
+int umbral = 500;        // Umbral de luz (ajustable)
+
+void setup() {
+  pinMode(pinLED, OUTPUT);
+  Serial.begin(9600);    // Para monitorear el valor de luz (opcional)
+}
+
+void loop() {
+  int valorLuz = analogRead(sensorLuz);  // Leer la intensidad de luz
+  Serial.println(valorLuz);              // Mostrar el valor por el monitor serie (opcional)
+
+  if (valorLuz < umbral) {
+    digitalWrite(pinLED, HIGH); // Si hay poca luz, encender LED
+  } else {
+    digitalWrite(pinLED, LOW);  // Si hay suficiente luz, apagar LED
+  }
+
+  delay(200);
+}
