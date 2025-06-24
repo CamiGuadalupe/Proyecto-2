@@ -1,0 +1,46 @@
+#include <Adafruit_NeoPixel.h>
+
+#define PIN        6       // Pin donde está conectada la tira
+#define NUMPIXELS  16      // Número de LEDs
+#define BOTON      2       // Pin del botón
+
+Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
+
+bool estadoAnterior = HIGH; // Estado previo del botón
+
+void setup() {
+  pixels.begin(); 
+  pixels.clear(); 
+  pixels.show();
+
+  pinMode(BOTON, INPUT_PULLUP); // Usamos resistencia pull-up interna
+}
+
+void loop() {
+  bool estadoActual = digitalRead(BOTON); // Lee el botón
+
+  // Detectar flanco de bajada (cuando se presiona el botón)
+  if (estadoAnterior == HIGH && estadoActual == LOW) {
+
+    // Enciende uno por uno en amarillo
+    for (int i = 0; i < NUMPIXELS; i++) {
+      pixels.setPixelColor(i, pixels.Color(255, 255, 0)); // Amarillo
+      pixels.show();
+      delay(200);
+    }
+
+    delay(500);
+
+    // Apaga uno por uno
+    for (int i = 0; i < NUMPIXELS; i++) {
+      pixels.setPixelColor(i, pixels.Color(0, 0, 0)); // Apagar
+      pixels.show();
+      delay(200);
+    }
+
+    delay(500);
+  }
+
+  // Actualizar el estado anterior para la próxima vuelta
+  estadoAnterior = estadoActual;
+}
