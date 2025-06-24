@@ -1,0 +1,94 @@
+// semaforo con boton, codigo CORREGIDO
+
+const int ledRojo = 8;
+const int ledAmarillo = 9;
+const int ledVerde = 10;
+
+const int boton = 3;
+
+unsigned long tiempoAnterior = 0;
+int estadoSemaforo = 0;
+
+bool overrideBoton = false;
+unsigned long tiempoOverride = 0;
+
+bool botonPresionadoAnterior = HIGH;
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(ledRojo, OUTPUT);
+  pinMode(ledAmarillo, OUTPUT);
+  pinMode(ledVerde, OUTPUT);
+  pinMode(boton, INPUT_PULLUP); // pull-up interno
+}
+
+void loop() {
+  bool estadoBoton = digitalRead(boton);
+
+  // Detectar PRESIÓN del botón (borde descendente)
+  if (!overrideBoton && botonPresionadoAnterior == HIGH && estadoBoton == LOW) {
+    overrideBoton = true;
+    tiempoOverride = millis();
+    Serial.println("Botón presionado: activando override");
+  }
+
+  // Guardar estado anterior
+  botonPresionadoAnterior = estadoBoton;
+
+  if (overrideBoton) {
+    Serial.println("🟢 Modo override: verde por botón");
+    digitalWrite(ledRojo, LOW);
+    digitalWrite(ledAmarillo, LOW);
+    digitalWrite(ledVerde, HIGH);
+
+    if (millis() - tiempoOverride >= 5000) {
+      digitalWrite(ledVerde, LOW);
+      digitalWrite(ledRojo, HIGH);
+      digitalWrite(ledAmarillo, LOW);
+      delay(2000); // rojo fijo
+
+      overrideBoton = false;
+      tiempoAnterior = millis();
+      estadoSemaforo = 0;
+    }
+    return;
+  }
+
+  // Modo automático
+  unsigned long tiempoActual = millis();
+
+  switch (estadoSemaforo) {
+    case 0: // Rojo
+      Serial.println("🔴 Rojo");
+      digitalWrite(ledRojo, HIGH);
+      digitalWrite(ledAmarillo, LOW);
+      digitalWrite(ledVerde, LOW);
+      if (tiempoActual - tiempoAnterior >= 4000) {
+        estadoSemaforo = 1;
+        tiempoAnterior = tiempoActual;
+      }
+      break;
+
+    case 1: // Verde
+      Serial.println("🟢 Verde");
+      digitalWrite(ledRojo, LOW);
+      digitalWrite(ledAmarillo, LOW);
+      digitalWrite(ledVerde, HIGH);
+      if (tiempoActual - tiempoAnterior >= 4000) {
+        estadoSemaforo = 2;
+        tiempoAnterior = tiempoActual;
+      }
+      break;
+
+    case 2: // Amarillo
+      Serial.println("🟡 Amarillo");
+      digitalWrite(ledRojo, LOW);
+      digitalWrite(ledAmarillo, HIGH);
+      digitalWrite(ledVerde, LOW);
+      if (tiempoActual - tiempoAnterior >= 2000) {
+        estadoSemaforo = 0;
+        tiempoAnterior = tiempoActual;
+      }
+      break;
+  }
+}
