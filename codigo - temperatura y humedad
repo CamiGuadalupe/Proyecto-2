@@ -3,7 +3,8 @@
 #include <DHT.h>
 
 // Configuración del DHT
-#define DHTPIN 2       // Pin donde está conectado el sensor
+#define DHTPIN 4
+// Pin donde está conectado el sensor
 #define DHTTYPE DHT11  // O usa DHT22 si ese es el tuyo
 
 DHT dht(DHTPIN, DHTTYPE);
