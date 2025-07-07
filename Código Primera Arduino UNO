@@ -15,6 +15,18 @@ const int boton = 3;
 #define DHTPIN 4
 #define DHTTYPE DHT11
 
+// Pines Sensor Ultrasónico 1
+const int trig1 = 6;
+const int echo1 = 7;
+const int led1Verde = A2;
+const int led1Rojo = A3;
+
+// Pines Sensor Ultrasónico 2
+const int trig2 = 11;
+const int echo2 = 12;
+const int led2Verde = A4;
+const int led2Rojo = A5;
+
 // ------------------ Objetos ------------------
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 DHT dht(DHTPIN, DHTTYPE);
@@ -33,24 +45,48 @@ const int umbral = 50;
 unsigned long tiempoSensor = 0;
 const unsigned long intervaloSensor = 2000;
 
+// ------------------ Variables Ultrasónicos ------------------
+const int umbralEstacionamiento = 10; // cm
+unsigned long tiempoUltrasonico = 0;
+const unsigned long intervaloUltrasonico = 500; // cada 0.5s
+
 // ------------------ Setup ------------------
 void setup() {
   Serial.begin(9600);
 
-  // Pines salida
   pinMode(buzzerPin, OUTPUT);
   digitalWrite(buzzerPin, LOW);
 
   pinMode(ledRojo, OUTPUT);
   pinMode(ledAmarillo, OUTPUT);
   pinMode(ledVerde, OUTPUT);
-
   pinMode(boton, INPUT_PULLUP);
 
-  // Iniciar sensor y pantalla
+  pinMode(trig1, OUTPUT);
+  pinMode(echo1, INPUT);
+  pinMode(led1Verde, OUTPUT);
+  pinMode(led1Rojo, OUTPUT);
+
+  pinMode(trig2, OUTPUT);
+  pinMode(echo2, INPUT);
+  pinMode(led2Verde, OUTPUT);
+  pinMode(led2Rojo, OUTPUT);
+
   dht.begin();
   lcd.init();
   lcd.backlight();
+}
+
+// ------------------ Función de Lectura Ultrasónica ------------------
+long leerDistanciaCM(int trigPin, int echoPin) {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  long duracion = pulseIn(echoPin, HIGH, 20000); // 20 ms timeout
+  if (duracion == 0) return 999; // Error
+  return duracion * 0.034 / 2;
 }
 
 // ------------------ Loop principal ------------------
@@ -86,14 +122,14 @@ void loop() {
     if (tiempoActual - tiempoOverride >= 5000) {
       digitalWrite(ledVerde, LOW);
       digitalWrite(ledRojo, HIGH);
-      delay(2000); // este pequeño delay no afecta ya que es muy corto
+      delay(2000);
       overrideBoton = false;
       tiempoSemaforo = millis();
       estadoSemaforo = 0;
     }
   } else {
     switch (estadoSemaforo) {
-      case 0: // Rojo
+      case 0:
         digitalWrite(ledRojo, HIGH);
         digitalWrite(ledAmarillo, LOW);
         digitalWrite(ledVerde, LOW);
@@ -102,7 +138,7 @@ void loop() {
           tiempoSemaforo = tiempoActual;
         }
         break;
-      case 1: // Verde
+      case 1:
         digitalWrite(ledRojo, LOW);
         digitalWrite(ledAmarillo, LOW);
         digitalWrite(ledVerde, HIGH);
@@ -111,7 +147,7 @@ void loop() {
           tiempoSemaforo = tiempoActual;
         }
         break;
-      case 2: // Amarillo
+      case 2:
         digitalWrite(ledRojo, LOW);
         digitalWrite(ledAmarillo, HIGH);
         digitalWrite(ledVerde, LOW);
@@ -146,5 +182,36 @@ void loop() {
       lcd.print(humedad);
       lcd.print("%");
     }
+  }
+
+  // ----------- Lectura de sensores ultrasónicos -----------
+  if (tiempoActual - tiempoUltrasonico >= intervaloUltrasonico) {
+    tiempoUltrasonico = tiempoActual;
+
+    long dist1 = leerDistanciaCM(trig1, echo1);
+    long dist2 = leerDistanciaCM(trig2, echo2);
+
+    // Estacionamiento 1
+    if (dist1 < umbralEstacionamiento) {
+      digitalWrite(led1Rojo, HIGH);
+      digitalWrite(led1Verde, LOW);
+    } else {
+      digitalWrite(led1Rojo, LOW);
+      digitalWrite(led1Verde, HIGH);
+    }
+
+    // Estacionamiento 2
+    if (dist2 < umbralEstacionamiento) {
+      digitalWrite(led2Rojo, HIGH);
+      digitalWrite(led2Verde, LOW);
+    } else {
+      digitalWrite(led2Rojo, LOW);
+      digitalWrite(led2Verde, HIGH);
+    }
+
+    Serial.print("Dist1: ");
+    Serial.print(dist1);
+    Serial.print(" cm | Dist2: ");
+    Serial.println(dist2);
   }
 }
