@@ -1,0 +1,150 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <DHT.h>
+
+// ------------------ Pines ------------------
+const int pot1Pin = A0;
+const int pot2Pin = A1;
+const int buzzerPin = 5;
+
+const int ledRojo = 8;
+const int ledAmarillo = 9;
+const int ledVerde = 10;
+const int boton = 3;
+
+#define DHTPIN 4
+#define DHTTYPE DHT11
+
+// ------------------ Objetos ------------------
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+DHT dht(DHTPIN, DHTTYPE);
+
+// ------------------ Variables Semáforo ------------------
+unsigned long tiempoSemaforo = 0;
+int estadoSemaforo = 0;
+bool overrideBoton = false;
+unsigned long tiempoOverride = 0;
+bool botonPresionadoAnterior = HIGH;
+
+// ------------------ Variables Potenciómetro ------------------
+const int umbral = 50;
+
+// ------------------ Variables DHT y LCD ------------------
+unsigned long tiempoSensor = 0;
+const unsigned long intervaloSensor = 2000;
+
+// ------------------ Setup ------------------
+void setup() {
+  Serial.begin(9600);
+
+  // Pines salida
+  pinMode(buzzerPin, OUTPUT);
+  digitalWrite(buzzerPin, LOW);
+
+  pinMode(ledRojo, OUTPUT);
+  pinMode(ledAmarillo, OUTPUT);
+  pinMode(ledVerde, OUTPUT);
+
+  pinMode(boton, INPUT_PULLUP);
+
+  // Iniciar sensor y pantalla
+  dht.begin();
+  lcd.init();
+  lcd.backlight();
+}
+
+// ------------------ Loop principal ------------------
+void loop() {
+  unsigned long tiempoActual = millis();
+
+  // ----------- Lectura de potenciómetros -----------
+  int valor1 = analogRead(pot1Pin);
+  int valor2 = analogRead(pot2Pin);
+
+  if (abs(valor1 - valor2) < umbral) {
+    digitalWrite(buzzerPin, HIGH);
+  } else {
+    digitalWrite(buzzerPin, LOW);
+  }
+
+  // ----------- Semáforo con botón -----------
+  bool estadoBoton = digitalRead(boton);
+
+  if (!overrideBoton && botonPresionadoAnterior == HIGH && estadoBoton == LOW) {
+    overrideBoton = true;
+    tiempoOverride = tiempoActual;
+    Serial.println("Botón presionado: override activado");
+  }
+
+  botonPresionadoAnterior = estadoBoton;
+
+  if (overrideBoton) {
+    digitalWrite(ledRojo, LOW);
+    digitalWrite(ledAmarillo, LOW);
+    digitalWrite(ledVerde, HIGH);
+
+    if (tiempoActual - tiempoOverride >= 5000) {
+      digitalWrite(ledVerde, LOW);
+      digitalWrite(ledRojo, HIGH);
+      delay(2000); // este pequeño delay no afecta ya que es muy corto
+      overrideBoton = false;
+      tiempoSemaforo = millis();
+      estadoSemaforo = 0;
+    }
+  } else {
+    switch (estadoSemaforo) {
+      case 0: // Rojo
+        digitalWrite(ledRojo, HIGH);
+        digitalWrite(ledAmarillo, LOW);
+        digitalWrite(ledVerde, LOW);
+        if (tiempoActual - tiempoSemaforo >= 4000) {
+          estadoSemaforo = 1;
+          tiempoSemaforo = tiempoActual;
+        }
+        break;
+      case 1: // Verde
+        digitalWrite(ledRojo, LOW);
+        digitalWrite(ledAmarillo, LOW);
+        digitalWrite(ledVerde, HIGH);
+        if (tiempoActual - tiempoSemaforo >= 4000) {
+          estadoSemaforo = 2;
+          tiempoSemaforo = tiempoActual;
+        }
+        break;
+      case 2: // Amarillo
+        digitalWrite(ledRojo, LOW);
+        digitalWrite(ledAmarillo, HIGH);
+        digitalWrite(ledVerde, LOW);
+        if (tiempoActual - tiempoSemaforo >= 2000) {
+          estadoSemaforo = 0;
+          tiempoSemaforo = tiempoActual;
+        }
+        break;
+    }
+  }
+
+  // ----------- Lectura de temperatura y humedad -----------
+  if (tiempoActual - tiempoSensor >= intervaloSensor) {
+    tiempoSensor = tiempoActual;
+
+    float temperatura = dht.readTemperature();
+    float humedad = dht.readHumidity();
+
+    lcd.clear();
+    if (isnan(temperatura) || isnan(humedad)) {
+      lcd.setCursor(0, 0);
+      lcd.print("Error en sensor");
+    } else {
+      lcd.setCursor(0, 0);
+      lcd.print("Temp: ");
+      lcd.print(temperatura);
+      lcd.print((char)223);
+      lcd.print("C");
+
+      lcd.setCursor(0, 1);
+      lcd.print("Humedad: ");
+      lcd.print(humedad);
+      lcd.print("%");
+    }
+  }
+}
