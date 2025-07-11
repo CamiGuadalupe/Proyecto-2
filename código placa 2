@@ -1,0 +1,135 @@
+#include <Servo.h>
+#include <Adafruit_NeoPixel.h>
+
+// ------------------ Sensor ultrasónico ------------------
+const int trigPin = 13;
+const int echoPin = 10;
+const int ledPin = 11;
+const int distanciaUmbral = 5;
+
+// ------------------ Sensor IR y servo ------------------
+Servo barrera;
+const int pinSensor = A0;
+const int pinEmisor = 3;
+const int umbral = 20;
+bool barreraLevantada = false;
+unsigned long tiempoBarrera = 0;
+const unsigned long tiempoAbierta = 3000;
+
+// ------------------ NeoPixel y botón ------------------
+#define PIN        7
+#define NUMPIXELS  16
+#define BOTON      2
+Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
+bool estadoAnterior = HIGH;
+int pasoNeoPixel = 0;
+unsigned long tiempoNeoPixel = 0;
+bool animacionActiva = false;
+bool apagando = false;
+
+// ------------------ Setup ------------------
+void setup() {
+  // Sensor ultrasónico
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(ledPin, OUTPUT);
+  
+  // Servo y sensor IR
+  pinMode(pinEmisor, OUTPUT);
+  digitalWrite(pinEmisor, HIGH);
+  barrera.attach(9);
+  barrera.write(45);
+
+  // NeoPixel
+  pixels.begin();
+  pixels.clear();
+  pixels.show();
+  pinMode(BOTON, INPUT_PULLUP);
+
+  // Serial
+  Serial.begin(9600);
+}
+
+// ------------------ Loop ------------------
+void loop() {
+  manejarUltrasonico();
+  manejarBarrera();
+  manejarNeoPixel();
+}
+
+// ------------------ Funciones ------------------
+
+void manejarUltrasonico() {
+  // Generar pulso
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  // Medir duración y calcular distancia
+  long duracion = pulseIn(echoPin, HIGH, 30000); // timeout opcional
+  int distancia = duracion * 0.034 / 2;
+
+  Serial.print("Distancia: ");
+  Serial.print(distancia);
+  Serial.println(" cm");
+
+  // Control del LED
+  digitalWrite(ledPin, distancia < distanciaUmbral ? HIGH : LOW);
+}
+
+void manejarBarrera() {
+  int lectura = analogRead(pinSensor);
+  Serial.print("IR: ");
+  Serial.println(lectura);
+
+  if (!barreraLevantada && lectura < umbral) {
+    barrera.write(140);
+    barreraLevantada = true;
+    tiempoBarrera = millis();
+  }
+
+  if (barreraLevantada && millis() - tiempoBarrera >= tiempoAbierta) {
+    barrera.write(45);
+  }
+
+  if (barreraLevantada && lectura >= umbral && millis() - tiempoBarrera >= tiempoAbierta) {
+    barreraLevantada = false;
+  }
+}
+
+void manejarNeoPixel() {
+  bool estadoActual = digitalRead(BOTON);
+
+  if (estadoAnterior == HIGH && estadoActual == LOW && !animacionActiva) {
+    animacionActiva = true;
+    apagando = false;
+    pasoNeoPixel = 0;
+    tiempoNeoPixel = millis();
+  }
+
+  estadoAnterior = estadoActual;
+
+  if (animacionActiva && millis() - tiempoNeoPixel >= 200) {
+    tiempoNeoPixel = millis();
+
+    if (!apagando) {
+      pixels.setPixelColor(pasoNeoPixel, pixels.Color(255, 255, 0)); // Amarillo
+    } else {
+      pixels.setPixelColor(pasoNeoPixel, pixels.Color(0, 0, 0)); // Apagar
+    }
+    pixels.show();
+    pasoNeoPixel++;
+
+    if (pasoNeoPixel >= NUMPIXELS) {
+      if (!apagando) {
+        apagando = true;
+        pasoNeoPixel = 0;
+        tiempoNeoPixel = millis() + 500; // Espera 500ms antes de apagar
+      } else {
+        animacionActiva = false; // Fin de la animación
+      }
+    }
+  }
+}
